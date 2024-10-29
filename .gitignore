@@ -1,0 +1,5 @@
+# Fichiers et dossiers courants à ignorer
+.env
+__pycache__/
+*.pyc
+.DS_Store  # MacOS
