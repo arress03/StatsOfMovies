@@ -1,115 +1,100 @@
-import requests
-import os
-from dotenv import load_dotenv
-from pathlib import Path
-from tkinter import messagebox, Entry, Label, Button, Frame
-from tkinter import Tk, StringVar
-from user_functions import add_user, get_watchlist
-from database import session
+import streamlit as st
+from functions import (
+    search_movies,
+    save_movie_to_csv,
+    analyze_genres,
+    analyze_directors,
+    analyze_actors,
+    analyze_geography,
+    analyze_budget_revenue,
+    visualize_saved_movies,
+)
 
-# Charger les variables d'environnement depuis .env
-env_path = Path('.') / '.env'
-load_dotenv(dotenv_path=env_path)
-API_KEY = os.getenv('TMDB_API_KEY')
-BASE_URL = 'https://api.themoviedb.org/3'
+# Configuration de l'interface
+st.set_page_config(page_title="Film Data Analysis Dashboard", layout="wide")
+st.title("Film Data Analysis Dashboard")
 
-# Fonction pour rechercher des films par nom
-def search_movies(query):
-    url = f"{BASE_URL}/search/movie"
-    params = {
-        'api_key': API_KEY,
-        'query': query
-    }
-    response = requests.get(url, params=params)
-    if response.status_code == 200:
-        return response.json()['results']
-    else:
-        print("Erreur lors de la recherche de films.")
-        return []
+# Navigation principale
+menu = st.sidebar.radio(
+    "Navigation",
+    [
+        "Recherche de films",
+        "Analyse des genres",
+        "Analyse des réalisateurs",
+        "Analyse des acteurs",
+        "Analyse géographique",
+        "Analyse des budgets et revenus",
+        "Visualisation des films enregistrés",
+    ],
+)
 
-# Création de l'interface graphique
-class MovieApp(Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("Application de films")
-        self.geometry("800x600")
-        self.configure(bg="#2e2e2e")  # Fond gris foncé pour éviter l'effet blanc
-
-        # Variables utilisateur
-        self.username = StringVar()
-        self.current_user = None  # Pour stocker l'utilisateur connecté
-        self.watchlist = []  # Pour stocker la watchlist
-
-        # Demande de l'utilisateur sur la même page principale
-        self.setup_username_entry()
-
-    def setup_username_entry(self):
-        # Label et champ de texte pour le nom d'utilisateur
-        Label(self, text="Entrez votre nom d'utilisateur :", bg="#2e2e2e", fg="white", font=("Arial", 16)).pack(pady=10)
-        self.username_entry = Entry(self, textvariable=self.username, font=("Arial", 14))
-        self.username_entry.pack(pady=10)
-        self.confirm_button = Button(self, text="Confirmer", command=self.confirm_username, font=("Arial", 12), bg="#5a5a5a", fg="white")
-        self.confirm_button.pack(pady=10)
-
-    def confirm_username(self):
-        username = self.username.get()
-        if username:
-            # Connexion ou ajout de l'utilisateur
-            self.current_user = add_user(username)
-            # Récupération de la watchlist
-            self.watchlist = get_watchlist(username)
-            print(f"Watchlist pour {username}:", [movie.movie_id for movie in self.watchlist])
-            self.setup_main_menu()
-        else:
-            messagebox.showerror("Erreur", "Veuillez entrer un nom d'utilisateur.")
-
-    def setup_main_menu(self):
-        # Effacer le champ d'utilisateur et bouton de confirmation
-        self.username_entry.pack_forget()
-        self.confirm_button.pack_forget()
-
-        # Menu principal avec deux boutons
-        Button(self, text="Partie Statistique", command=self.show_stat_page, width=30, height=2, bg="#5a5a5a", fg="white", font=("Arial", 12)).pack(pady=10)
-        Button(self, text="Recommandations Personnalisées", command=self.show_recommend_page, width=30, height=2, bg="#5a5a5a", fg="white", font=("Arial", 12)).pack(pady=10)
-
-    # Page Statistique
-    def show_stat_page(self):
-        for widget in self.winfo_children():
-            widget.pack_forget()
-        
-        Label(self, text="Analyse des genres par année", font=("Arial", 16), bg="#2e2e2e", fg="white").pack(pady=10)
-        self.year_entry = Entry(self, font=("Arial", 14))
-        self.year_entry.pack(pady=10)
-        Button(self, text="Lancer l'analyse", command=self.launch_genre_analysis, bg="#5a5a5a", fg="white").pack(pady=10)
-        Button(self, text="Retour au menu principal", command=self.setup_main_menu, bg="#5a5a5a", fg="white").pack(pady=10)
-
-    # Page Recommandation
-    def show_recommend_page(self):
-        for widget in self.winfo_children():
-            widget.pack_forget()
-        
-        Label(self, text="Sélectionnez vos films préférés", font=("Arial", 16), bg="#2e2e2e", fg="white").pack(pady=10)
-        self.movie_search_entry = Entry(self, font=("Arial", 14))
-        self.movie_search_entry.pack(pady=10)
-        Button(self, text="Rechercher", command=self.search_movies_interface, bg="#5a5a5a", fg="white").pack(pady=10)
-        Button(self, text="Retour au menu principal", command=self.setup_main_menu, bg="#5a5a5a", fg="white").pack(pady=10)
-
-    # Fonction pour lancer l'analyse des genres
-    def launch_genre_analysis(self):
-        try:
-            year = int(self.year_entry.get())
-            print(f"Analyzing genre trends for the year {year}")  # Placeholder
-        except ValueError:
-            messagebox.showerror("Erreur", "Veuillez entrer une année valide.")
-
-    # Interface de recherche de films
-    def search_movies_interface(self):
-        query = self.movie_search_entry.get()
+# Recherche de films
+if menu == "Recherche de films":
+    st.header("Recherche de films")
+    query = st.text_input("Entrez un titre ou un genre de film")
+    if query:
         results = search_movies(query)
-        print(f"Recherche de films pour : {query}")  # Placeholder
+        if results:
+            for movie in results[:5]:  # Limiter à 5 résultats
+                st.image(movie["poster_path"], width=150)
+                st.write(f"**Titre :** {movie['title']}")
+                st.write(f"**Date de sortie :** {movie['release_date']}")
+                st.write(f"**Genres :** {', '.join(movie['genres'])}")
+                st.write(f"**Réalisateur :** {movie['director']}")
+                st.write(f"**Acteurs principaux :** {', '.join(movie['actors'])}")
 
+                if st.button(f"Enregistrer {movie['title']}", key=movie["id"]):
+                    save_movie_to_csv(movie)
+                    st.success(f"Film '{movie['title']}' enregistré avec succès.")
+        else:
+            st.error("Aucun résultat trouvé. Essayez un autre titre ou genre.")
 
-# Lancer l'application
-if __name__ == "__main__":
-    app = MovieApp()
-    app.mainloop()
+# Analyse des genres
+elif menu == "Analyse des genres":
+    st.header("Analyse des genres")
+    filter_type = st.selectbox("Filtrer par :", ["Année", "Genre"])
+    if filter_type == "Année":
+        year = st.number_input("Entrez une année", min_value=1900, max_value=2024, step=1)
+        if st.button("Analyser"):
+            analyze_genres(year=year)
+    elif filter_type == "Genre":
+        genre = st.text_input("Entrez un genre")
+        if st.button("Analyser"):
+            analyze_genres(genre=genre)
+
+# Analyse des réalisateurs
+elif menu == "Analyse des réalisateurs":
+    st.header("Analyse des réalisateurs")
+    director = st.text_input("Entrez le nom d'un réalisateur")
+    if st.button("Analyser"):
+        analyze_directors(director)
+
+# Analyse des acteurs
+elif menu == "Analyse des acteurs":
+    st.header("Analyse des acteurs")
+    actor = st.text_input("Entrez le nom d'un acteur")
+    if st.button("Analyser"):
+        analyze_actors(actor)
+
+# Analyse géographique
+elif menu == "Analyse géographique":
+    st.header("Analyse géographique")
+    filter_type = st.selectbox("Filtrer par :", ["Année", "Pays"])
+    if filter_type == "Année":
+        year = st.number_input("Entrez une année", min_value=1900, max_value=2024, step=1)
+        if st.button("Analyser"):
+            analyze_geography(year=year)
+    elif filter_type == "Pays":
+        country = st.text_input("Entrez un pays")
+        if st.button("Analyser"):
+            analyze_geography(country=country)
+
+# Analyse des budgets et revenus
+elif menu == "Analyse des budgets et revenus":
+    st.header("Analyse des budgets et revenus")
+    analyze_budget_revenue()
+
+# Visualisation des films enregistrés
+elif menu == "Visualisation des films enregistrés":
+    st.header("Visualisation des films enregistrés")
+    visualize_saved_movies()
