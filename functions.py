@@ -1,6 +1,7 @@
 import requests
 import pandas as pd
 import streamlit as st
+import matplotlib.pyplot as plt
 
 API_KEY = "4a151fdfe38db01056b9f6f0189378ab"
 BASE_URL = "https://api.themoviedb.org/3"
@@ -86,3 +87,86 @@ def save_movie_to_csv(movie, csv_path="movies.csv"):
             st.warning(f"Le film '{movie['title']}' est déjà enregistré.")
     except Exception as e:
         st.error(f"Erreur lors de l'enregistrement du film : {e}")
+
+def get_available_genres():
+    """
+    Récupère tous les genres disponibles depuis TMDB.
+    """
+    try:
+        url = f"{BASE_URL}/genre/movie/list"
+        params = {"api_key": API_KEY}
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        genres = response.json()["genres"]
+        return [genre["name"] for genre in genres]
+    except requests.exceptions.RequestException as e:
+        st.error(f"Erreur lors de la récupération des genres : {e}")
+        return []
+
+def get_genre_id(genre_name):
+    """
+    Récupère l'ID d'un genre donné en fonction de son nom depuis TMDB.
+    """
+    try:
+        url = f"{BASE_URL}/genre/movie/list"
+        params = {"api_key": API_KEY}
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        genres = response.json()["genres"]
+        for genre in genres:
+            if genre["name"].lower() == genre_name.lower():
+                return genre["id"]
+        return None
+    except Exception as e:
+        st.error(f"Erreur lors de la récupération des genres : {e}")
+        return None
+
+def analyze_genres(genre, start_year, end_year):
+    """
+    Analyse des genres en se basant sur les 50 meilleurs films les plus populaires pour chaque année.
+    """
+    try:
+        genre_id = get_genre_id(genre)
+        if not genre_id:
+            st.error("Genre introuvable. Veuillez vérifier le nom du genre.")
+            return
+
+        movies_per_year = {}
+        for year in range(start_year, end_year + 1):
+            url = f"{BASE_URL}/discover/movie"
+            params = {
+                "api_key": API_KEY,
+                "sort_by": "popularity.desc",
+                "primary_release_year": year,
+                "page": 1,
+            }
+
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            results = response.json().get("results", [])
+
+            for page in range(2, 3):
+                params["page"] = page
+                response = requests.get(url, params=params)
+                response.raise_for_status()
+                results.extend(response.json().get("results", []))
+
+            genre_count = 0
+            for movie in results:
+                if genre_id in movie.get("genre_ids", []):
+                    genre_count += 1
+
+            movies_per_year[year] = genre_count
+
+        years = list(movies_per_year.keys())
+        counts = list(movies_per_year.values())
+
+        plt.figure(figsize=(10, 6))
+        plt.bar(years, counts, color="skyblue")
+        plt.title(f"Nombre de films pour le genre '{genre}' entre {start_year} et {end_year}")
+        plt.xlabel("Année")
+        plt.ylabel("Nombre de films")
+        st.pyplot(plt)
+
+    except Exception as e:
+        st.error(f"Erreur lors de l'analyse des genres : {e}")

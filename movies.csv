@@ -1,2 +1,6 @@
 title,release_date,genres,director,actors,id,budget,revenue,poster_path
 Shutter Island,2010-02-14,"['Drama', 'Thriller', 'Mystery']",Martin Scorsese,"['Leonardo DiCaprio', 'Mark Ruffalo', 'Ben Kingsley', 'Max von Sydow', 'Michelle Williams']",11324,80000000,294804195,https://image.tmdb.org/t/p/w500/4GDy0PHYX3VRXUtwK5ysFbg3kEx.jpg
+Parasite,2019-05-30,"['Comedy', 'Thriller', 'Drama']",Bong Joon-ho,"['Song Kang-ho', 'Lee Sun-kyun', 'Cho Yeo-jeong', 'Choi Woo-shik', 'Park So-dam']",496243,11363000,257591776,https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg
+Star Wars,1977-05-25,"['Adventure', 'Action', 'Science Fiction']",George Lucas,"['Mark Hamill', 'Harrison Ford', 'Carrie Fisher', 'Peter Cushing', 'Alec Guinness']",11,11000000,775398007,https://image.tmdb.org/t/p/w500/6FfCtAuVAW8XJjZ7eWeLibRLWTw.jpg
+Titanic,1997-11-18,"['Drama', 'Romance']",James Cameron,"['Leonardo DiCaprio', 'Kate Winslet', 'Billy Zane', 'Kathy Bates', 'Frances Fisher']",597,200000000,2264162353,https://image.tmdb.org/t/p/w500/9xjZS2rlVxm8SFx8kPC3aIGCOYQ.jpg
+La Haine,1995-05-31,['Drama'],Mathieu Kassovitz,"['Vincent Cassel', 'Hubert Koundé', 'Saïd Taghmaoui', 'Abdel Ahmed Ghili', 'Solo']",406,2600000,15300000,https://image.tmdb.org/t/p/w500/a6DGCZC2fHNr07tyRumM30ALEKE.jpg
