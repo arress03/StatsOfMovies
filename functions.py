@@ -1,106 +1,88 @@
+import requests
 import pandas as pd
-import matplotlib.pyplot as plt
 import streamlit as st
-from tmdbv3api import TMDb, Movie
 
-# Configuration de l'API TMDb
-tmdb = TMDb()
-tmdb.api_key = "4a151fdfe38db01056b9f6f0189378ab"
-tmdb.language = "fr"
+API_KEY = "4a151fdfe38db01056b9f6f0189378ab"
+BASE_URL = "https://api.themoviedb.org/3"
 
-movie_api = Movie()
-
-# Recherche de films
 def search_movies(query):
-    results = movie_api.search(query)
-    genres_mapping = {genre['id']: genre['name'] for genre in movie_api.genres()["genres"]}
-    movies = []
-    for result in results:
-        movie = {
-            "title": result.title,
-            "release_date": result.release_date or "Date inconnue",
-            "genres": [genres_mapping.get(genre_id, "Inconnu") for genre_id in result.genre_ids],
-            "poster_path": f"https://image.tmdb.org/t/p/w500{result.poster_path}" if result.poster_path else None,
-            "director": "Inconnu",  # Réalisation non incluse directement
-            "actors": [],  # Acteurs principaux non inclus directement
-            "id": result.id,
-            "budget": 0,  # Budget par défaut
-            "revenue": 0,  # Revenus par défaut
+    try:
+        url = f"{BASE_URL}/search/movie"
+        params = {"api_key": API_KEY, "query": query}
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        results = response.json()["results"]
+
+        # Ajouter les genres, acteurs et réalisateurs si disponibles
+        enriched_results = []
+        for result in results:
+            movie_id = result["id"]
+
+            # Récupérer les détails supplémentaires du film
+            details = get_movie_details(movie_id)
+            if details:
+                enriched_results.append(details)
+
+        return enriched_results
+    except requests.exceptions.RequestException as e:
+        st.error(f"Erreur lors de la recherche de films : {e}")
+        return []
+    except KeyError as e:
+        st.error(f"Erreur de données API : {e}")
+        return []
+
+def get_movie_details(movie_id):
+    try:
+        url = f"{BASE_URL}/movie/{movie_id}"
+        params = {"api_key": API_KEY, "append_to_response": "credits"}
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        movie = response.json()
+
+        # Récupérer les acteurs et réalisateurs
+        director = "Inconnu"
+        actors = []
+        if "credits" in movie:
+            crew = movie["credits"]["crew"]
+            cast = movie["credits"]["cast"]
+            director_info = next((member for member in crew if member["job"] == "Director"), None)
+            if director_info:
+                director = director_info["name"]
+            actors = [actor["name"] for actor in cast[:5]]  # Limité aux 5 premiers acteurs
+
+        return {
+            "title": movie.get("title", "Inconnu"),
+            "release_date": movie.get("release_date", "Inconnu"),
+            "genres": [genre["name"] for genre in movie.get("genres", [])],
+            "director": director,
+            "actors": actors,
+            "id": movie_id,
+            "budget": movie.get("budget", 0),
+            "revenue": movie.get("revenue", 0),
+            "poster_path": f"https://image.tmdb.org/t/p/w500{movie.get('poster_path')}" if movie.get("poster_path") else None,
         }
-        movies.append(movie)
-    return movies
+    except requests.exceptions.RequestException as e:
+        st.error(f"Erreur lors de la récupération des détails du film : {e}")
+        return None
+    except KeyError as e:
+        st.error(f"Erreur de données API : {e}")
+        return None
 
-# Enregistrer un film dans le CSV
-def save_movie_to_csv(movie, filename="data/movies.csv"):
+def save_movie_to_csv(movie, csv_path="movies.csv"):
     try:
-        data = pd.read_csv(filename)
-    except FileNotFoundError:
-        data = pd.DataFrame(columns=["title", "release_date", "genres", "director", "actors", "budget", "revenue"])
-    data = pd.concat([data, pd.DataFrame([movie])], ignore_index=True)
-    data.to_csv(filename, index=False)
+        # Charger ou créer le DataFrame
+        try:
+            existing_data = pd.read_csv(csv_path)
+        except FileNotFoundError:
+            existing_data = pd.DataFrame(columns=["title", "release_date", "genres", "director", "actors", "id", "budget", "revenue", "poster_path"])
 
-# Visualisation des films enregistrés
-def visualize_saved_movies(filename="data/movies.csv"):
-    try:
-        data = pd.read_csv(filename)
-        st.dataframe(data)
-    except FileNotFoundError:
-        st.warning("Aucun film enregistré. Enregistrez des films pour commencer.")
-
-# Analyse des genres
-def analyze_genres(year=None, genre=None, filename="data/movies.csv"):
-    try:
-        data = pd.read_csv(filename)
-        if year:
-            filtered = data[data["release_date"].str.startswith(str(year))]
-            genre_counts = filtered["genres"].str.split(", ").explode().value_counts()
-            st.bar_chart(genre_counts)
-        elif genre:
-            filtered = data[data["genres"].str.contains(genre, case=False, na=False)]
-            yearly_counts = filtered.groupby(filtered["release_date"].str[:4]).size()
-            st.line_chart(yearly_counts)
-    except FileNotFoundError:
-        st.error("Aucune donnée disponible pour l'analyse.")
-
-# Analyse des réalisateurs
-def analyze_directors(director, filename="data/movies.csv"):
-    try:
-        data = pd.read_csv(filename)
-        filtered = data[data["director"].str.contains(director, case=False, na=False)]
-        yearly_counts = filtered.groupby(filtered["release_date"].str[:4]).size()
-        st.line_chart(yearly_counts)
-    except FileNotFoundError:
-        st.error("Aucune donnée disponible pour l'analyse.")
-
-# Analyse des acteurs
-def analyze_actors(actor, filename="data/movies.csv"):
-    try:
-        data = pd.read_csv(filename)
-        filtered = data[data["actors"].str.contains(actor, case=False, na=False)]
-        yearly_counts = filtered.groupby(filtered["release_date"].str[:4]).size()
-        st.line_chart(yearly_counts)
-    except FileNotFoundError:
-        st.error("Aucune donnée disponible pour l'analyse.")
-
-# Analyse géographique
-def analyze_geography(year=None, country=None, filename="data/movies.csv"):
-    try:
-        data = pd.read_csv(filename)
-        if year:
-            filtered = data[data["release_date"].str.startswith(str(year))]
-        elif country:
-            filtered = data[data["genres"].str.contains(country, case=False, na=False)]
-        st.map(filtered[["latitude", "longitude"]])
-    except FileNotFoundError:
-        st.error("Aucune donnée disponible pour l'analyse.")
-
-# Analyse des budgets et revenus
-def analyze_budget_revenue(filename="data/movies.csv"):
-    try:
-        data = pd.read_csv(filename)
-        if "budget" in data.columns and "revenue" in data.columns:
-            st.bar_chart(data[["budget", "revenue"]])
+        # Ajouter le film s'il n'existe pas déjà
+        if movie["id"] not in existing_data["id"].values:
+            new_row = pd.DataFrame([movie])
+            updated_data = pd.concat([existing_data, new_row], ignore_index=True)
+            updated_data.to_csv(csv_path, index=False)
+            st.success(f"Film '{movie['title']}' enregistré avec succès.")
         else:
-            st.warning("Aucune donnée de budget ou revenu disponible.")
-    except FileNotFoundError:
-        st.error("Aucune donnée disponible.")
+            st.warning(f"Le film '{movie['title']}' est déjà enregistré.")
+    except Exception as e:
+        st.error(f"Erreur lors de l'enregistrement du film : {e}")

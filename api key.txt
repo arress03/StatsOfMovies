@@ -1,0 +1,3 @@
+tmdb = TMDb()
+tmdb.api_key = "4a151fdfe38db01056b9f6f0189378ab"
+tmdb.language = "fr"
