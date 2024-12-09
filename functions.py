@@ -170,3 +170,75 @@ def analyze_genres(genre, start_year, end_year):
 
     except Exception as e:
         st.error(f"Erreur lors de l'analyse des genres : {e}")
+
+def get_director_movies(director_name):
+    """
+    Récupère les films d'un réalisateur donné en utilisant l'API TMDb.
+    """
+    url = f"{BASE_URL}/search/person"
+    params = {"api_key": API_KEY, "query": director_name}
+    response = requests.get(url, params=params)
+
+    if response.status_code == 200:
+        results = response.json().get("results", [])
+        if results:
+            person_id = results[0]["id"]
+            return fetch_movies_by_director(person_id)
+        else:
+            return []
+    else:
+        st.error("Erreur lors de la connexion à l'API.")
+        return []
+
+
+def fetch_movies_by_director(director_id):
+    """
+    Récupère tous les films d'un réalisateur donné à partir de son ID.
+    """
+    url = f"{BASE_URL}/person/{director_id}/movie_credits"
+    params = {"api_key": API_KEY}
+    response = requests.get(url, params=params)
+
+    if response.status_code == 200:
+        crew = response.json().get("crew", [])
+        directed_movies = [movie for movie in crew if movie.get("job") == "Director"]
+        return directed_movies
+    else:
+        return []
+
+
+def analyze_director_movies_by_year(director_name):
+    """
+    Analyse le nombre de films par année d'un réalisateur.
+    """
+    movies = get_director_movies(director_name)
+    if not movies:
+        return {}
+
+    years = []
+    for movie in movies:
+        release_date = movie.get("release_date", None)
+        if release_date:
+            year = release_date.split("-")[0]
+            years.append(year)
+
+    movies_per_year = pd.Series(years).value_counts().sort_index()
+    return movies_per_year
+
+
+def analyze_director_ratings(director_name):
+    """
+    Analyse la distribution des notes des films d'un réalisateur.
+    """
+    movies = get_director_movies(director_name)
+    if not movies:
+        return 0, pd.Series(dtype=int)
+
+    ratings = [movie.get("vote_average", 0) for movie in movies if movie.get("vote_average") is not None]
+    avg_rating = sum(ratings) / len(ratings) if ratings else 0
+
+    bins = [0, 2, 4, 6, 8, 10]
+    labels = ["0-2", "2-4", "4-6", "6-8", "8-10"]
+    ratings_distribution = pd.cut(ratings, bins=bins, labels=labels, include_lowest=True).value_counts().sort_index()
+
+    return avg_rating, ratings_distribution

@@ -1,11 +1,19 @@
 import streamlit as st
-from functions import search_movies, save_movie_to_csv, analyze_genres, get_available_genres
+from functions import search_movies, save_movie_to_csv, analyze_genres, get_available_genres, analyze_director_movies_by_year, analyze_director_ratings
+import pandas as pd
 
 # Interface utilisateur principale
-st.title("Film Data Analysis Dashboard")
+st.title("StatsOfMovies By Théo TEPER")
+
+# Charger les données
+@st.cache_data
+def load_data():
+    return pd.read_csv("movies.csv")
+
+data = load_data()
 
 # Navigation
-menu = ["Recherche de films", "Analyse des genres"]
+menu = ["Recherche de films", "Analyse des genres", "Analyse des réalisateurs"]
 choice = st.sidebar.radio("Navigation", menu)
 
 if choice == "Recherche de films":
@@ -42,3 +50,23 @@ elif choice == "Analyse des genres":
 
     if st.button("Analyser"):
         analyze_genres(genre=genre, start_year=start_year, end_year=end_year)
+
+elif choice == "Analyse des réalisateurs":
+    st.header("Analyse des réalisateurs")
+    option = st.radio("Options :", ["Nombre de films par année", "Distribution des notes"])
+    director_name = st.text_input("Entrez le nom du réalisateur :", placeholder="Exemple : Christopher Nolan")
+
+    if option == "Nombre de films par année" and director_name:
+        movies_per_year = analyze_director_movies_by_year(director_name)
+        if not movies_per_year.empty:
+            st.bar_chart(movies_per_year)
+        else:
+            st.warning(f"Aucune donnée trouvée pour le réalisateur {director_name}.")
+
+    elif option == "Distribution des notes" and director_name:
+        avg_rating, ratings_distribution = analyze_director_ratings(director_name)
+        if avg_rating > 0:
+            st.write(f"Note moyenne : {avg_rating:.2f}")
+            st.bar_chart(ratings_distribution)
+        else:
+            st.warning(f"Aucune donnée disponible pour les notes du réalisateur {director_name}.")
